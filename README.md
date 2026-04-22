@@ -144,24 +144,10 @@ Claude widzi reminder w kontekście przed odpowiedzią
 
 ---
 
-## Inspiracja i kredyty
-
-Ten projekt powstał po przeczytaniu postu **[„Claude Code is a Beast" autorstwa u/JokeGold5455](https://www.reddit.com/r/ClaudeAI/comments/1oivjvm/claude_code_is_a_beast_tips_from_6_months_of/)** i jego repo [`diet103/claude-code-infrastructure-showcase`](https://github.com/diet103/claude-code-infrastructure-showcase) (MIT). Koncept przechwytywania `UserPromptSubmit` + plik `skill-rules.json` zapożyczone stamtąd (uczciwie — pomysł nie jest nasz).
-
-Czym się różnimy:
-
-|  | u/JokeGold5455 | skill-router (ten projekt) |
-|---|---|---|
-| Język hooka | TypeScript + Bash (wymaga `npx tsx`, Node, npm) | Python 3 (stdlib only, zero deps) |
-| Matching | keywords + **regex intent patterns** + 4 poziomy priorytetu | keywords + **polska normalizacja diakrytyków**, 3 poziomy |
-| Enforcement | `block` / `suggest` / `warn` | **tylko SUGGEST**, nigdy nie blokuje |
-| Error handling | `stderr` + `exit 1` przy błędzie | silent fail, `exit 0` zawsze |
-| Logowanie | brak | auto-rotacja, CLI stats + dead-keyword detection |
-| Onboarding nowego usera | ręczna edycja JSON | interaktywny wizard (`config-init`) |
-| Docelowa grupa | developer z dużym repo TypeScript | **solopreneur polskojęzyczny** używający Claude Code do contentu/maila/planowania |
-
-Jego system jest mocniejszy dla programistycznych workflowów z Stop-hook i build-resolverem. Nasz jest prostszy w instalacji i rozumie, że „zrób karuzelę" i „zrob karuzele" to to samo.
-
 ## Licencja
 
 MIT — patrz [LICENSE](LICENSE).
+
+---
+
+*Koncept `UserPromptSubmit` + `skill-rules.json` zainspirowany publicznym projektem [diet103/claude-code-infrastructure-showcase](https://github.com/diet103/claude-code-infrastructure-showcase) (MIT).*
