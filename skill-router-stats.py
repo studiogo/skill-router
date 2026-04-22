@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-skill-router-stats — log analyzer for skill-router.
+skill-router-stats — analizator logu skill-routera.
 
-Reads ~/.claude/hooks/skill-router.log and reports:
-  - total invocations
-  - match rate (% of prompts with at least one skill matched)
-  - top N skills by match count
-  - dead keywords (never matched — good candidates for removal/rewrite)
+Czyta ~/.claude/hooks/skill-router.log i pokazuje:
+  - łączną liczbę uruchomień
+  - match rate (% promptów z co najmniej jednym skillem)
+  - top N skilli wg liczby matchy
+  - martwe skille (skonfigurowane, ale nigdy nie zmatchowane — kandydaci do poprawy)
 
-Usage:
-  python3 skill-router-stats.py                 # all time
-  python3 skill-router-stats.py --days 7        # last 7 days
-  python3 skill-router-stats.py --skill inbox   # drill into one skill
+Użycie:
+  python3 skill-router-stats.py                 # cały czas
+  python3 skill-router-stats.py --days 7        # ostatnie 7 dni
+  python3 skill-router-stats.py --skill inbox   # jeden konkretny skill
 """
 import argparse
 import datetime
@@ -76,12 +76,12 @@ def load_log_prompts(path: Path, since: datetime.datetime | None):
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Analyze skill-router.log")
+    ap = argparse.ArgumentParser(description="Analiza skill-router.log")
     ap.add_argument("--days", type=int, default=None,
-                    help="Only include entries from the last N days")
+                    help="Licz tylko wpisy z ostatnich N dni")
     ap.add_argument("--skill", type=str, default=None,
-                    help="Show counts for one specific skill")
-    ap.add_argument("--top", type=int, default=10, help="Top-N skills (default 10)")
+                    help="Pokaż statystyki jednego konkretnego skilla")
+    ap.add_argument("--top", type=int, default=10, help="Ilu najpopularniejszych skilli pokazać (domyślnie 10)")
     args = ap.parse_args()
 
     since = None
@@ -106,43 +106,43 @@ def main() -> int:
             errors += 1
 
     if total == 0:
-        print(f"No log entries found at {LOG_PATH}", file=sys.stderr)
+        print(f"Brak wpisów w logu: {LOG_PATH}", file=sys.stderr)
         return 1
 
-    actionable = matches + no_match  # SKIP / ERROR are not useful for match rate
+    actionable = matches + no_match  # SKIP / ERROR nie liczą się do match rate
     rate = (matches / actionable * 100) if actionable else 0
-    window = f"last {args.days} days" if args.days else "all time"
+    window = f"ostatnie {args.days} dni" if args.days else "cały czas"
 
-    print(f"skill-router stats — {window}")
-    print(f"  log:               {LOG_PATH}")
-    print(f"  total entries:     {total}")
-    print(f"  matches:           {matches}")
-    print(f"  no-match:          {no_match}")
-    print(f"  errors/warnings:   {errors}")
-    print(f"  match rate:        {rate:.1f}%")
+    print(f"skill-router — statystyki ({window})")
+    print(f"  log:             {LOG_PATH}")
+    print(f"  łącznie wpisów:  {total}")
+    print(f"  matche:          {matches}")
+    print(f"  bez matcha:      {no_match}")
+    print(f"  błędy/warningi:  {errors}")
+    print(f"  match rate:      {rate:.1f}%")
     print()
 
     if args.skill:
         count = skill_counts.get(args.skill, 0)
-        print(f"skill {args.skill!r}: {count} match(es)")
+        print(f"skill {args.skill!r}: {count} match(ów)")
         return 0
 
     if skill_counts:
-        print(f"Top {args.top} skills by match count:")
+        print(f"Top {args.top} skilli wg liczby matchy:")
         for name, cnt in skill_counts.most_common(args.top):
             bar = "█" * min(cnt, 40)
             print(f"  {name:<28} {cnt:>4}  {bar}")
         print()
 
-    # Dead keywords: configured but never caused a match in this window
+    # Martwe skille — skonfigurowane, ale w tym oknie bez matcha
     configured = load_configured_keywords()
     if configured:
         dead_skills = [s for s in configured if s not in skill_counts]
         if dead_skills:
-            print(f"Skills with zero matches in window ({len(dead_skills)}):")
+            print(f"Skille bez matcha w tym oknie ({len(dead_skills)}):")
             for s in sorted(dead_skills):
                 print(f"  {s}")
-            print("  → review keywords, or drop if the skill is no longer used")
+            print("  → popraw słowa kluczowe albo usuń skill jeśli nieaktywny")
             print()
 
     return 0

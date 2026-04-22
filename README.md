@@ -101,7 +101,7 @@ Każda linia to: timestamp + typ (`MATCH` / `NO MATCH` / `SKIP` / `ERROR`) + pro
 ### Statystyki użycia
 
 ```bash
-python3 skill-router-stats.py                 # all time
+python3 skill-router-stats.py                 # cały czas
 python3 skill-router-stats.py --days 7        # ostatni tydzień
 python3 skill-router-stats.py --skill inbox   # drill-down na jeden skill
 ```
@@ -137,7 +137,7 @@ Claude widzi reminder w kontekście przed odpowiedzią
 
 | Objaw | Diagnoza |
 |---|---|
-| `tail -f` pokazuje same `NO MATCH` | Keywordy w twoim configu nie pasują do tego jak faktycznie mówisz. Odpal `skill-router-stats.py --days 7` → sekcja „zero matches" powie które skille są martwe. |
+| `tail -f` pokazuje same `NO MATCH` | Keywordy w twoim configu nie pasują do tego jak faktycznie mówisz. Odpal `skill-router-stats.py --days 7` → sekcja „bez matcha" powie które skille są martwe. |
 | `CONFIG WARN` w logu | Zły format `skill-rules.json`. Komunikat mówi co poprawić (priority, keywords, typ entry). |
 | Hook nie odpala się w ogóle | Sprawdź `~/.claude/settings.json` — czy jest blok `UserPromptSubmit`? Sprawdź `which python3`. |
 | Log rośnie w nieskończoność | Hook sam rotuje po 1 MB (`.log.1`). Jeśli nadal duży — `LOG_MAX_BYTES` w `skill-router.py` obniż. |

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-skill-router-config-init — interactive wizard that generates a starter
-~/.claude/skill-rules.json from curated category templates.
+skill-router-config-init — interaktywny kreator, który generuje
+startowy ~/.claude/skill-rules.json z gotowych szablonów kategorii.
 
-Run once after installation, then tune manually as your workflow grows.
+Uruchom raz po instalacji, potem dostosuj ręcznie pod swój workflow.
 """
 import datetime
 import json
@@ -15,82 +15,82 @@ CONFIG_PATH = Path.home() / ".claude" / "skill-rules.json"
 
 CATEGORIES: dict[str, dict] = {
     "content-creation": {
-        "label": "Content creation (LinkedIn, carousels, posts, newsletters)",
+        "label": "Tworzenie treści (LinkedIn, karuzele, posty, newsletter)",
         "skills": {
             "create-carousel": {
                 "keywords": ["carousel", "karuzel", "slajd", "slides"],
                 "priority": "high",
-                "description": "Generate a carousel deck (LinkedIn / Instagram).",
+                "description": "Generuj karuzelę slajdów (LinkedIn / Instagram).",
             },
             "write-linkedin-post": {
                 "keywords": ["linkedin post", "post na linkedin", "napisz post", "zrob post"],
                 "priority": "high",
-                "description": "Draft a LinkedIn post in your voice.",
+                "description": "Napisz post na LinkedIn w Twoim tonie.",
             },
             "write-newsletter": {
                 "keywords": ["newsletter", "wydanie"],
                 "priority": "medium",
-                "description": "Compose a newsletter issue.",
+                "description": "Przygotuj wydanie newslettera.",
             },
         },
     },
     "inbox-triage": {
-        "label": "Inbox & communication (email triage, reply drafts)",
+        "label": "Skrzynka i komunikacja (triage maili, drafty odpowiedzi)",
         "skills": {
             "inbox-triage": {
                 "keywords": ["inbox", "poczt", "email", "mail"],
                 "priority": "high",
-                "description": "Morning email triage — important vs trash, calendar hits.",
+                "description": "Poranny triage poczty — ważne vs śmieci, spotkania, drafty odpowiedzi.",
             },
             "draft-reply": {
                 "keywords": ["draft reply", "odpisz", "odpowiedz"],
                 "priority": "medium",
-                "description": "Draft a reply to an email thread.",
+                "description": "Napisz szkic odpowiedzi na wątek mailowy.",
             },
         },
     },
     "scheduling": {
-        "label": "Calendar & scheduling",
+        "label": "Kalendarz i planowanie",
         "skills": {
             "schedule-meeting": {
                 "keywords": ["schedule", "spotkani", "kalendarz", "calendar"],
                 "priority": "medium",
-                "description": "Create a calendar event via your calendar integration.",
+                "description": "Utwórz wydarzenie w kalendarzu przez integrację.",
             },
         },
     },
     "image-generation": {
-        "label": "Image generation & editing",
+        "label": "Generowanie i edycja obrazów",
         "skills": {
             "generate-image": {
                 "keywords": ["generate image", "grafik", "obrazek", "thumbnail"],
                 "priority": "medium",
-                "description": "Text-to-image via your preferred generator.",
+                "description": "Tekst → obraz przez Twojego preferowanego generatora.",
             },
         },
     },
     "dev-workflow": {
-        "label": "Dev helpers (code review, test runners, debugging)",
+        "label": "Narzędzia dev (review kodu, odpalanie testów, debug)",
         "skills": {
             "code-review": {
                 "keywords": ["code review", "review", "przejrzyj kod"],
                 "priority": "medium",
-                "description": "Request a structured code review.",
+                "description": "Zrób strukturalny review kodu.",
             },
             "run-tests": {
                 "keywords": ["run tests", "odpal test", "test suite"],
                 "priority": "medium",
-                "description": "Kick off your project test suite.",
+                "description": "Uruchom suite testów projektu.",
             },
         },
     },
     "personal": {
-        "label": "Personal (fitness, finance, habits — examples you can remove)",
+        "label": "Prywatne (fitness, finanse, nawyki — przykłady do modyfikacji)",
         "skills": {
             "fitness-log": {
                 "keywords": ["zjadl", "trening", "waga dzis", "fitness log"],
                 "priority": "low",
-                "description": "Log a meal / workout / weight entry.",
+                "description": "Zapisz wpis o posiłku / treningu / wadze.",
             },
         },
     },
@@ -98,7 +98,7 @@ CATEGORIES: dict[str, dict] = {
 
 
 def prompt_yes_no(question: str, default: bool = True) -> bool:
-    suffix = " [Y/n] " if default else " [y/N] "
+    suffix = " [T/n] " if default else " [t/N] "
     while True:
         try:
             ans = input(question + suffix).strip().lower()
@@ -106,15 +106,15 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
             return default
         if not ans:
             return default
-        if ans in ("y", "yes", "t", "tak"):
+        if ans in ("t", "tak", "y", "yes"):
             return True
-        if ans in ("n", "no", "nie"):
+        if ans in ("n", "nie", "no"):
             return False
 
 
 def choose_categories() -> list[str]:
     print()
-    print("Pick one or more categories (comma-separated numbers, e.g. 1,2,4):")
+    print("Wybierz jedną lub więcej kategorii (numery po przecinku, np. 1,2,4):")
     print()
     keys = list(CATEGORIES.keys())
     for i, key in enumerate(keys, 1):
@@ -123,18 +123,18 @@ def choose_categories() -> list[str]:
 
     while True:
         try:
-            raw = input("Your choice: ").strip()
+            raw = input("Twój wybór: ").strip()
         except EOFError:
-            print("\nAborted.")
+            print("\nPrzerwano.")
             sys.exit(1)
         try:
             picks = [int(x.strip()) for x in raw.split(",") if x.strip()]
             chosen = [keys[p - 1] for p in picks if 1 <= p <= len(keys)]
         except (ValueError, IndexError):
-            print("  Could not parse — try again, e.g. '1,3'")
+            print("  Nie zrozumiałem — spróbuj ponownie, np. '1,3'")
             continue
         if not chosen:
-            print("  Pick at least one category.")
+            print("  Wybierz przynajmniej jedną kategorię.")
             continue
         return chosen
 
@@ -146,25 +146,25 @@ def build_config(category_keys: list[str]) -> dict:
             skills[skill_name] = dict(skill_data)
     return {
         "version": "1.0",
-        "description": "Generated by skill-router-config-init. Edit to match your actual skills & keywords.",
+        "description": "Wygenerowane przez skill-router-config-init. Edytuj pod swoje realne skille i słowa kluczowe.",
         "skills": skills,
     }
 
 
 def main() -> int:
-    print("skill-router — config init wizard")
+    print("skill-router — kreator konfiguracji")
     print("=" * 40)
 
     if CONFIG_PATH.exists():
-        print(f"Config already exists at {CONFIG_PATH}")
-        if not prompt_yes_no("Overwrite? A backup will be saved", default=False):
-            print("Aborted.")
+        print(f"Konfiguracja już istnieje: {CONFIG_PATH}")
+        if not prompt_yes_no("Nadpisać? (zrobię kopię zapasową)", default=False):
+            print("Przerwano.")
             return 1
         backup = CONFIG_PATH.with_suffix(
             f".json.bak-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
         )
         shutil.copy2(CONFIG_PATH, backup)
-        print(f"Backup: {backup}")
+        print(f"Kopia zapasowa: {backup}")
 
     chosen = choose_categories()
     config = build_config(chosen)
@@ -173,14 +173,14 @@ def main() -> int:
     CONFIG_PATH.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     print()
-    print(f"Wrote {CONFIG_PATH}")
-    print(f"Skills seeded: {len(config['skills'])}")
+    print(f"Zapisano: {CONFIG_PATH}")
+    print(f"Liczba skilli na start: {len(config['skills'])}")
     print()
-    print("Next steps:")
-    print(f"  1. Review & tune keywords:  $EDITOR {CONFIG_PATH}")
-    print("  2. Tail the log to see matches in real time:")
+    print("Co dalej:")
+    print(f"  1. Dostosuj słowa kluczowe:  $EDITOR {CONFIG_PATH}")
+    print("  2. Podgląd logu na żywo:")
     print("       tail -f ~/.claude/hooks/skill-router.log")
-    print("  3. After a day of use, check stats:")
+    print("  3. Po dniu używania — statystyki:")
     print("       python3 skill-router-stats.py --days 1")
     return 0
 
