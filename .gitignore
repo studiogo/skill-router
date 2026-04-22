@@ -1,0 +1,21 @@
+# Personal config (users copy skill-rules.example.json → skill-rules.json)
+skill-rules.json
+skill-rules.local.json
+
+# Runtime log
+skill-router.log
+skill-router.log.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

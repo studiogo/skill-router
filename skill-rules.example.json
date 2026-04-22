@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "description": "Example skill-rules config. Each entry maps a skill name to keywords that should trigger a suggestion. Polish diacritics are normalized automatically — 'karuzelę' matches 'karuzele'.",
+  "skills": {
+    "create-carousel": {
+      "keywords": ["carousel", "karuzel", "slajd", "slides"],
+      "priority": "high",
+      "description": "Generate a LinkedIn/Instagram carousel (image deck). Use when planning a multi-slide post."
+    },
+    "write-linkedin-post": {
+      "keywords": ["linkedin post", "post na linkedin", "napisz post", "zrob post"],
+      "priority": "high",
+      "description": "Draft a LinkedIn post in your voice."
+    },
+    "inbox-triage": {
+      "keywords": ["inbox", "poczt", "email", "mail"],
+      "priority": "high",
+      "description": "Run morning inbox triage — important vs trash, calendar hits, reply drafts."
+    },
+    "schedule-meeting": {
+      "keywords": ["schedule", "spotkani", "kalendarz", "calendar"],
+      "priority": "medium",
+      "description": "Create a calendar event via your calendar integration."
+    },
+    "generate-image": {
+      "keywords": ["generate image", "grafik", "obrazek", "thumbnail"],
+      "priority": "medium",
+      "description": "Text-to-image via your preferred generator."
+    },
+    "write-newsletter": {
+      "keywords": ["newsletter", "wydanie"],
+      "priority": "medium",
+      "description": "Compose a newsletter issue — used for your own voice, not daily AI-news summaries."
+    }
+  }
+}
