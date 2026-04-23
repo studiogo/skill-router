@@ -10,8 +10,10 @@ Jeden hook w Pythonie, zero zależności (`pip install` nie jest potrzebny).
 
 1. **Słucha każdego promptu** (hook `UserPromptSubmit`) i normalizuje polskie diakrytyki — `„zrób karuzelę"` matchuje keyword `„zrob karuzele"`.
 2. **Sugeruje do 3 skilli** gdy trafi na słowo kluczowe z Twojego configu. Tryb SUGGEST — nigdy nie blokuje promptu.
-3. **(v0.2) Wstrzykuje do 3 zasad z `memory/feedback_*.md`** rankowanych przez **BM25** — algorytm używany przez Google/Elasticsearch. Dzięki temu Claude widzi relevantne zasady historyczne (np. „karuzele: używaj Style B Terminal Tech") zanim odpowie.
-4. **Loguje każde uruchomienie** do `~/.claude/hooks/skill-router.log` (auto-rotacja po 1 MB), żeby potem dało się policzyć co matchuje, a co jest martwe.
+3. **(v0.2) Wstrzykuje do 3 zasad z `memory/feedback_*.md` + `memory/rules/*.md`** rankowanych przez **BM25** — algorytm używany przez Google/Elasticsearch. Dzięki temu Claude widzi relevantne zasady historyczne (np. „karuzele: używaj Style B Terminal Tech") zanim odpowie.
+4. **(v0.3) Priority boost** — reguły oznaczone `priority: critical` w YAML frontmatter dostają 10× wzmocnienie w rankingu. Krytyczne zasady (Firewall umowy, cennik, nieodwracalne akcje) praktycznie nigdy nie wypadają z top 3.
+5. **(v0.3) Auto-mapowanie skilli** — skrypt `scripts/gen-skill-rules.py` czyta `~/.claude/skills/*/SKILL.md` i generuje cały `skill-rules.json` z frontmatter'ów. Dodajesz nowy skill → jedna komenda i hook go rozpoznaje.
+6. **Loguje każde uruchomienie** do `~/.claude/hooks/skill-router.log` (auto-rotacja po 1 MB), żeby potem dało się policzyć co matchuje, a co jest martwe.
 
 ## Przykład
 

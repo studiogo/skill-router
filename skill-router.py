@@ -44,6 +44,17 @@ CONTEXT_MIN_QUERY_TOKENS = 2      # don't rank if query has < N meaningful token
 CONTEXT_MIN_DOC_HITS = 2          # doc must contain ≥N different query terms
 CONTEXT_MAX_CORPUS = 500          # safety cap on indexed docs
 DESC_BOOST = 3.0                  # multiplier for terms found in description/name
+
+# Priority multipliers for BM25 final score. Docs marked `priority: critical`
+# in their YAML frontmatter (e.g. Firewall Practima, pricing rules, safety)
+# get a 10x boost so they practically never fall out of the top 3. Everything
+# without an explicit priority defaults to `medium` (1×).
+PRIORITY_BOOST = {
+    "critical": 10.0,
+    "high": 3.0,
+    "medium": 1.0,
+    "low": 0.3,
+}
 BM25_K1 = 1.5
 BM25_B = 0.75
 TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -130,35 +141,50 @@ def validate_skill(name: str, data: dict) -> str | None:
 
 # ─── BM25 context-rules ranking (v0.2) ────────────────────────────────────────
 
-def _parse_frontmatter_description(content: str) -> str:
-    """Extract `description:` from YAML frontmatter. Empty string if none."""
+def _parse_frontmatter(content: str) -> dict:
+    """Extract simple YAML frontmatter fields (description, priority, ...).
+    Returns empty dict if no frontmatter. Does not support nested structures —
+    only top-level `key: value` scalar lines."""
+    out = {}
     if not content.startswith("---"):
-        return ""
+        return out
     end = content.find("\n---", 3)
     if end < 0:
-        return ""
+        return out
     for line in content[3:end].splitlines():
         line = line.strip()
-        if line.startswith("description:"):
-            return line.split(":", 1)[1].strip().strip('"').strip("'")
-    return ""
+        if not line or ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        out[key.strip()] = value.strip().strip('"').strip("'")
+    return out
+
+
+def _parse_frontmatter_description(content: str) -> str:
+    """Backwards-compatible wrapper — returns just the `description` field."""
+    return _parse_frontmatter(content).get("description", "")
 
 
 def load_feedback_corpus() -> list:
-    """Scan all feedback_*.md files under ~/.claude/projects/*/memory/.
+    """Scan all context rule files under ~/.claude/projects/*/memory/:
+      - feedback_*.md (post-hoc lessons)
+      - rules/*.md     (work-mode rules: core, tools, research, content, …)
+
     Deduplicates by filename (Syncthing / multiple project dirs can surface
-    the same feedback more than once). Returns list of {name, description,
-    tokens, desc_tokens} dicts. Empty if none found.
+    the same file more than once). Returns list of {name, description,
+    priority, tokens, desc_tokens} dicts. Empty if none found.
 
     `desc_tokens` is a set built from the filename + frontmatter description —
-    used to boost docs whose high-signal fields match the query, versus docs
-    where the term only appears inside prose."""
+    used to boost docs whose high-signal fields match the query."""
     corpus = []
     seen_names: set = set()
     base = CLAUDE_DIR / "projects"
     if not base.exists():
         return corpus
-    for path in base.glob("*/memory/feedback_*.md"):
+    # Both glob patterns combined — rules/*.md has higher signal density,
+    # but feedback_*.md is the larger corpus.
+    paths = list(base.glob("*/memory/feedback_*.md")) + list(base.glob("*/memory/rules/*.md"))
+    for path in paths:
         if path.name in seen_names:
             continue
         if len(corpus) >= CONTEXT_MAX_CORPUS:
@@ -168,11 +194,16 @@ def load_feedback_corpus() -> list:
         except Exception:
             continue
         seen_names.add(path.name)
-        description = _parse_frontmatter_description(content)
+        fm = _parse_frontmatter(content)
+        description = fm.get("description", "")
+        priority = fm.get("priority", "medium").lower()
+        if priority not in PRIORITY_BOOST:
+            priority = "medium"
         desc_tokens = set(tokenize(path.name + " " + description))
         corpus.append({
             "name": path.name,
             "description": description,
+            "priority": priority,
             "tokens": tokenize(content),
             "desc_tokens": desc_tokens,
         })
@@ -225,8 +256,15 @@ def bm25_rank(query_tokens: list, corpus: list, top_n: int = CONTEXT_TOP_N) -> l
                 score += term_score
         # Require at least N different query terms to appear — prevents single
         # incidental word from scoring high in unrelated docs.
-        if unique_hits >= CONTEXT_MIN_DOC_HITS and score >= CONTEXT_MIN_SCORE:
-            results.append((score, doc))
+        if unique_hits < CONTEXT_MIN_DOC_HITS:
+            continue
+        # Apply priority multiplier (critical × 10, high × 3, medium × 1, low × 0.3).
+        # Threshold is checked against the RAW score so that `low` priority docs
+        # don't sneak in with tiny absolute scores, but a `critical` with
+        # moderate raw relevance will beat a `medium` with equal raw relevance.
+        if score >= CONTEXT_MIN_SCORE:
+            boosted = score * PRIORITY_BOOST.get(doc["priority"], 1.0)
+            results.append((boosted, doc))
 
     results.sort(key=lambda x: x[0], reverse=True)
     return results[:top_n]
