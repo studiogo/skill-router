@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """
-skill-router — Claude Code UserPromptSubmit hook (v0.2).
+skill-router — Claude Code UserPromptSubmit hook (v0.3).
 
 Reads prompt from stdin (JSON from Claude Code), emits two kinds of hints
 back into Claude's context before it responds:
 
   1. 🎯 SKILL ACTIVATION — keyword-matched skills from ~/.claude/skill-rules.json
-     (matches substrings of keywords you defined in the config)
+     (matches substrings of keywords you defined in the config; auto-generated
+     from ~/.claude/skills/*/SKILL.md via scripts/gen-skill-rules.py in v0.3)
 
-  2. 📋 CONTEXT RULES — BM25-ranked feedback rules from memory/feedback_*.md
-     (new in v0.2 — uses a Best Matching 25 implementation in stdlib so the
-     most relevant historical lessons get injected automatically)
+  2. 📋 CONTEXT RULES — BM25-ranked rules from memory/feedback_*.md and
+     memory/rules/*.md. Each rule can declare `priority:` in its frontmatter
+     (critical / high / medium / low) which multiplies its final BM25 score
+     by 10 / 3 / 1 / 0.3 so safety/contract rules practically never fall out
+     of the top 3 (v0.3 priority boost).
 
 Philosophy:
   - SUGGEST only: never blocks prompt, exit 0 always, silent fail on errors.
