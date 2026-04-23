@@ -1,6 +1,6 @@
 # skill-router
 
-**Automatyczne przypomnienia o Twoich skillach w Claude Code.** Claude zapomina o kartkach procedur po długiej sesji. `skill-router` to drugi asystent — czyta każdy Twój prompt, porównuje z mapą słów kluczowych i szepcze Claude'owi: *„sprawdź kartkę 13"*.
+**Automatyczne przypomnienia o Twoich skillach w Claude Code + wstrzykiwanie relevantnych zasad z pamięci.** Claude zapomina o kartkach procedur po długiej sesji. `skill-router` to drugi asystent — czyta każdy Twój prompt i szepcze Claude'owi: *„sprawdź kartkę 13 — oraz zasady A, B, C z pamięci"*.
 
 Jeden hook w Pythonie, zero zależności (`pip install` nie jest potrzebny).
 
@@ -10,16 +10,22 @@ Jeden hook w Pythonie, zero zależności (`pip install` nie jest potrzebny).
 
 1. **Słucha każdego promptu** (hook `UserPromptSubmit`) i normalizuje polskie diakrytyki — `„zrób karuzelę"` matchuje keyword `„zrob karuzele"`.
 2. **Sugeruje do 3 skilli** gdy trafi na słowo kluczowe z Twojego configu. Tryb SUGGEST — nigdy nie blokuje promptu.
-3. **Loguje każde uruchomienie** do `~/.claude/hooks/skill-router.log` (auto-rotacja po 1 MB), żeby potem dało się policzyć co matchuje, a co jest martwe.
+3. **(v0.2) Wstrzykuje do 3 zasad z `memory/feedback_*.md`** rankowanych przez **BM25** — algorytm używany przez Google/Elasticsearch. Dzięki temu Claude widzi relevantne zasady historyczne (np. „karuzele: używaj Style B Terminal Tech") zanim odpowie.
+4. **Loguje każde uruchomienie** do `~/.claude/hooks/skill-router.log` (auto-rotacja po 1 MB), żeby potem dało się policzyć co matchuje, a co jest martwe.
 
 ## Przykład
 
 ```
-$ echo '{"prompt":"Zrób karuzelę na LinkedIn"}' | python3 skill-router.py
+$ echo '{"prompt":"Zrób karuzelę na LinkedIn o AI agentach"}' | python3 skill-router.py
 🎯 SKILL ACTIVATION: Rozważ użycie skilla `create-carousel`
+
+📋 CONTEXT RULES (relevant memory):
+  → feedback_carousel_default_style_b.md: Style B jest domyślny dla nowych karuzel LinkedIn od 18.04...
+  → feedback_carousel_linkedin_style.md: Jak pisać teksty do karuzel i postów LinkedIn...
+  → feedback_linkedin_api.md: Nie publikować przez Postiz — używać LinkedIn API bezpośrednio...
 ```
 
-Claude widzi to w kontekście przed odpowiedzią, więc *faktycznie* odpala skill zamiast rozwiązywać od zera.
+Claude widzi to w kontekście przed odpowiedzią, więc *faktycznie* odpala skill zamiast rozwiązywać od zera, **i stosuje Twoje historyczne zasady bez pytania.**
 
 ---
 
@@ -119,15 +125,34 @@ Claude Code → UserPromptSubmit hook → skill-router.py
     ↓
 normalize(prompt)  ← lowercase + ą→a, ę→e, ł→l, ń→n, ó→o, ś→s, ź→z, ż→z, ć→c
     ↓
-dla każdego skilla w skill-rules.json:
-    jeśli normalize(keyword) jest w znormalizowanym promptcie → match
+┌───────────────────────────┬─────────────────────────────────────┐
+│ A) SKILL ACTIVATION       │ B) CONTEXT RULES (v0.2)             │
+│                           │                                     │
+│ dla każdego skilla:       │ skanuj memory/feedback_*.md         │
+│   substring match         │ tokenize + stemming polski          │
+│   z keyword w configu     │ BM25 ranking (IDF × TF × length)    │
+│ top 3 po priority         │ boost dla filename + description    │
+│                           │ min 2 hits, min score 3.0           │
+│                           │ top 3 > threshold                   │
+└───────────────────────────┴─────────────────────────────────────┘
     ↓
-sortuj po priority (high > medium > low), weź top 3
-    ↓
-wypluj na stdout: "🎯 SKILL ACTIVATION: Rozważ użycie skilla `name1`, `name2`"
+output (2 sekcje):
+  🎯 SKILL ACTIVATION: Rozważ użycie skilla `name1`, `name2`
+  📋 CONTEXT RULES (relevant memory):
+    → feedback_X.md: opis...
     ↓
 Claude widzi reminder w kontekście przed odpowiedzią
 ```
+
+### Dlaczego BM25 (v0.2)
+
+BM25 (Best Matching 25) to de-facto standard w search engines — używany przez Google, Elasticsearch, Lucene od ~40 lat. Implementacja w stdlib (~50 linii), bez zewnętrznych zależności. Uwzględnia:
+
+- **IDF** — rzadkie słowa ważniejsze niż częste
+- **Length normalization** — krótkie dokumenty nie dostają niesprawiedliwej przewagi
+- **Term frequency saturation** — 10. powtórzenie słowa już niewiele dodaje
+
+Plus prosty **stemmer polski** — żeby „wagę"/"waga"/„wagi" matchowały się na wspólny trzon.
 
 **Silent fail** wszędzie — brak configa, broken JSON, prompt 50 KB, sigma Unicode — hook nigdy nie ubija promptu.
 
