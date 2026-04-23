@@ -55,7 +55,7 @@ DESC_BOOST = 3.0                  # multiplier for terms found in description/na
 # without an explicit priority defaults to `medium` (1×).
 PRIORITY_BOOST = {
     "critical": 10.0,
-    "high": 3.0,
+    "high": 2.0,
     "medium": 1.0,
     "low": 0.3,
 }
@@ -262,7 +262,7 @@ def bm25_rank(query_tokens: list, corpus: list, top_n: int = CONTEXT_TOP_N) -> l
         # incidental word from scoring high in unrelated docs.
         if unique_hits < CONTEXT_MIN_DOC_HITS:
             continue
-        # Apply priority multiplier (critical × 10, high × 3, medium × 1, low × 0.3).
+        # Apply priority multiplier (critical × 10, high × 2, medium × 1, low × 0.3).
         # Threshold is checked against the RAW score so that `low` priority docs
         # don't sneak in with tiny absolute scores, but a `critical` with
         # moderate raw relevance will beat a `medium` with equal raw relevance.
