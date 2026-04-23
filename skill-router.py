@@ -43,7 +43,8 @@ VALID_PRIORITIES = set(PRIORITY_ORDER.keys())
 # Context rules (v0.2 BM25 feedback ranking)
 CONTEXT_TOP_N = 3
 CONTEXT_MIN_SCORE = 3.0           # below this, the match is weak — skip
-CONTEXT_MIN_QUERY_TOKENS = 2      # don't rank if query has < N meaningful tokens
+CONTEXT_MIN_SCORE_NO_SKILL = 8.0  # higher bar when no skill matched (meta-talk filter)
+CONTEXT_MIN_QUERY_TOKENS = 3      # don't rank if query has < N meaningful tokens
 CONTEXT_MIN_DOC_HITS = 2          # doc must contain ≥N different query terms
 CONTEXT_MAX_CORPUS = 500          # safety cap on indexed docs
 DESC_BOOST = 3.0                  # multiplier for terms found in description/name
@@ -328,12 +329,18 @@ def main() -> None:
         except Exception as e:
             log(f"ERROR: config not valid JSON ({e})")
 
-    # 3. Rank feedback rules (v0.2 — BM25)
+    # 3. Rank feedback rules (v0.2 — BM25). When no skill matched, assume the
+    # prompt is a meta-conversation ("ok", "już mówiłem", status updates) and
+    # require a much higher BM25 score — otherwise we spam Claude's context
+    # with rules that incidentally shared one or two common words. Critical
+    # rules (×10 priority boost) still surface because 0.8 raw × 10 = 8.
     ranked_rules = []
     try:
         corpus = load_feedback_corpus()
         if corpus:
             ranked_rules = bm25_rank(tokenize(prompt_raw), corpus)
+            if not matches:
+                ranked_rules = [r for r in ranked_rules if r[0] >= CONTEXT_MIN_SCORE_NO_SKILL]
     except Exception as e:
         log(f"BM25 ERROR (non-fatal): {e}")
 
