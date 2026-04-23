@@ -140,6 +140,10 @@ Skrypt:
 
 Brak configa, broken JSON, prompt 50 KB, unusual Unicode, brak `memory/` — hook nigdy nie ubija promptu. Exit 0 zawsze.
 
+### Tuning pod swój korpus
+
+Progi rankingu (`PRIORITY_BOOST`, `CONTEXT_MIN_SCORE`, `CONTEXT_MIN_SCORE_NO_SKILL`, `CONTEXT_MIN_QUERY_TOKENS`) są stałymi na początku `skill-router.py`. Defaulty są konserwatywne — jeśli masz za dużo szumu w meta-rozmowach, zaostrzaj lokalnie. Edytuj wartości w swojej kopii `~/.claude/hooks/skill-router.py` — nie ma osobnego pliku config, bo chcemy minimum ruchomych części.
+
 </details>
 
 ---
