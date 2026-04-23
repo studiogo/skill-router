@@ -1,78 +1,41 @@
 # skill-router
 
-**Automatyczne przypomnienia o Twoich skillach w Claude Code + wstrzykiwanie relevantnych zasad z pamięci.** Claude zapomina o kartkach procedur po długiej sesji. `skill-router` to drugi asystent — czyta każdy Twój prompt i szepcze Claude'owi: *„sprawdź kartkę 13 — oraz zasady A, B, C z pamięci"*.
+**Automatyczne przypomnienia o Twoich skillach w Claude Code.** Claude zapomina o kartkach procedur po długiej sesji. `skill-router` to drugi asystent — czyta każdy Twój prompt, matchuje go ze słownikiem skilli i szepcze Claude'owi: *„sprawdź kartkę 13"*.
 
-Jeden hook w Pythonie, zero zależności (`pip install` nie jest potrzebny).
-
----
-
-## Co robi
-
-1. **Słucha każdego promptu** (hook `UserPromptSubmit`) i normalizuje polskie diakrytyki — `„zrób karuzelę"` matchuje keyword `„zrob karuzele"`.
-2. **Sugeruje do 3 skilli** gdy trafi na słowo kluczowe z Twojego configu. Tryb SUGGEST — nigdy nie blokuje promptu.
-3. **(v0.2) Wstrzykuje do 3 zasad z `memory/feedback_*.md` + `memory/rules/*.md`** rankowanych przez **BM25** — algorytm używany przez Google/Elasticsearch. Dzięki temu Claude widzi relevantne zasady historyczne (np. „karuzele: używaj Style B Terminal Tech") zanim odpowie.
-4. **(v0.3) Priority boost** — reguły oznaczone `priority: critical` w YAML frontmatter dostają 10× wzmocnienie w rankingu. Krytyczne zasady (Firewall umowy, cennik, nieodwracalne akcje) praktycznie nigdy nie wypadają z top 3.
-5. **(v0.3) Auto-mapowanie skilli** — skrypt `scripts/gen-skill-rules.py` czyta `~/.claude/skills/*/SKILL.md` i generuje cały `skill-rules.json` z frontmatter'ów. Dodajesz nowy skill → jedna komenda i hook go rozpoznaje.
-6. **Loguje każde uruchomienie** do `~/.claude/hooks/skill-router.log` (auto-rotacja po 1 MB), żeby potem dało się policzyć co matchuje, a co jest martwe.
-
-## Przykład
-
-```
-$ echo '{"prompt":"Zrób karuzelę na LinkedIn o AI agentach"}' | python3 skill-router.py
-🎯 SKILL ACTIVATION: Rozważ użycie skilla `create-carousel`
-
-📋 CONTEXT RULES (relevant memory):
-  → feedback_carousel_default_style_b.md: Style B jest domyślny dla nowych karuzel LinkedIn od 18.04...
-  → feedback_carousel_linkedin_style.md: Jak pisać teksty do karuzel i postów LinkedIn...
-  → feedback_linkedin_api.md: Nie publikować przez Postiz — używać LinkedIn API bezpośrednio...
-```
-
-Claude widzi to w kontekście przed odpowiedzią, więc *faktycznie* odpala skill zamiast rozwiązywać od zera, **i stosuje Twoje historyczne zasady bez pytania.**
+Jeden hook w Pythonie. **Zero zależności** — `pip install` nie jest potrzebny, tylko Python 3.7+ (macOS/Linux ma wbudowany).
 
 ---
 
-## Instalacja
-
-### Opcja A — one-liner (zalecana)
+## Quick start
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/studiogo/skill-router/main/install.sh | bash
 ```
 
-Kopiuje `skill-router.py` + dwie skryptowe komendy do `~/.claude/hooks/`, podpina hook w `~/.claude/settings.json` (z automatycznym backupem), stawia startowy `skill-rules.example.json`. Nie nadpisze istniejącej konfiguracji.
+Kopiuje 3 pliki do `~/.claude/hooks/`, podpina hook w `~/.claude/settings.json` (z backupem), stawia startowy `skill-rules.example.json`. Nie nadpisze istniejącej konfiguracji.
 
-### Opcja B — manualnie
+**To wszystko.** W nowej sesji Claude Code wpisz coś ze słowem kluczowym z config'a i zobaczysz:
 
-```bash
-git clone https://github.com/studiogo/skill-router.git
-cd skill-router
-./install.sh
+```
+$ echo '{"prompt":"Zrób karuzelę na LinkedIn"}' | python3 skill-router.py
+🎯 SKILL ACTIVATION: Rozważ użycie skilla `create-carousel`
 ```
 
-Albo jeszcze bardziej ręcznie — skopiuj `skill-router.py` do `~/.claude/hooks/`, `skill-rules.example.json` do `~/.claude/skill-rules.json`, i dopisz do `~/.claude/settings.json`:
+## Co robi
 
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [{
-      "hooks": [{
-        "type": "command",
-        "command": "python3 $HOME/.claude/hooks/skill-router.py"
-      }]
-    }]
-  }
-}
-```
+1. **Słucha każdego promptu** (hook `UserPromptSubmit`) i normalizuje polskie diakrytyki — `„zrób karuzelę"` matchuje keyword `„zrob karuzele"`.
+2. **Sugeruje do 3 skilli** gdy trafi na słowo kluczowe z Twojego configu. Tryb SUGGEST — nigdy nie blokuje promptu.
+3. **Loguje każde uruchomienie** do `~/.claude/hooks/skill-router.log` (auto-rotacja po 1 MB).
 
 ## Konfiguracja
 
 ### Pierwszy config przez wizarda
 
 ```bash
-python3 skill-router-config-init.py
+python3 ~/.claude/hooks/skill-router-config-init.py
 ```
 
-Pyta o kategorie (content, inbox, scheduling, image-gen, dev, personal) i generuje startowy `~/.claude/skill-rules.json`. Backup starego configu zawsze przed nadpisaniem.
+Pyta o kategorie (content, inbox, scheduling, image-gen, dev, personal) i generuje startowy `~/.claude/skill-rules.json`.
 
 ### Ręczna edycja
 
@@ -81,95 +44,117 @@ Pyta o kategorie (content, inbox, scheduling, image-gen, dev, personal) i generu
   "version": "1.0",
   "skills": {
     "create-carousel": {
-      "keywords": ["carousel", "karuzela", "slajdy"],
+      "keywords": ["carousel", "karuzel", "slajd"],
       "priority": "high"
     }
   }
 }
 ```
 
-- `priority`: `"high"` | `"medium"` | `"low"` — sugestie sortowane w tej kolejności
-- `keywords`: lista stringów (lowercase), matching po substringu + normalizacji diakrytyków
-- Niepoprawne wpisy (zła priority, keywords nie-lista) są pomijane i logowane jako `CONFIG WARN`
-
-> **Tip: używaj rdzeni słów, nie form gramatycznych.** Matching jest substring, więc `"karuzel"` łapie *karuzela / karuzelę / karuzeli / karuzele*. `"spotkani"` łapie *spotkanie / spotkania / spotkaniu*. Jedna forma bazowa = pełna odmiana po polsku.
-
----
+> **Tip: używaj rdzeni słów.** Matching jest substring po diakrytykach, więc `"karuzel"` łapie *karuzela / karuzelę / karuzeli / karuzele*. Jedna forma bazowa = pełna odmiana po polsku.
 
 ## Komendy
 
-### Podgląd loga na żywo
-
 ```bash
+# podgląd loga na żywo
 tail -f ~/.claude/hooks/skill-router.log
+
+# statystyki: match rate, top 10 skilli, dead keywords
+python3 ~/.claude/hooks/skill-router-stats.py
+python3 ~/.claude/hooks/skill-router-stats.py --days 7
 ```
-
-Każda linia to: timestamp + typ (`MATCH` / `NO MATCH` / `SKIP` / `ERROR`) + prompt (obcinany do 80 znaków).
-
-### Statystyki użycia
-
-```bash
-python3 skill-router-stats.py                 # cały czas
-python3 skill-router-stats.py --days 7        # ostatni tydzień
-python3 skill-router-stats.py --skill inbox   # drill-down na jeden skill
-```
-
-Pokazuje: total/matches/no-match, match rate %, top 10 skilli, **martwe skille** (skonfigurowane, ale żadnego matcha) — świetny sygnał że keyword trzeba przepisać albo skill usunąć.
-
----
-
-## Jak to działa
-
-```
-prompt użytkownika
-    ↓
-Claude Code → UserPromptSubmit hook → skill-router.py
-    ↓
-normalize(prompt)  ← lowercase + ą→a, ę→e, ł→l, ń→n, ó→o, ś→s, ź→z, ż→z, ć→c
-    ↓
-┌───────────────────────────┬─────────────────────────────────────┐
-│ A) SKILL ACTIVATION       │ B) CONTEXT RULES (v0.2)             │
-│                           │                                     │
-│ dla każdego skilla:       │ skanuj memory/feedback_*.md         │
-│   substring match         │ tokenize + stemming polski          │
-│   z keyword w configu     │ BM25 ranking (IDF × TF × length)    │
-│ top 3 po priority         │ boost dla filename + description    │
-│                           │ min 2 hits, min score 3.0           │
-│                           │ top 3 > threshold                   │
-└───────────────────────────┴─────────────────────────────────────┘
-    ↓
-output (2 sekcje):
-  🎯 SKILL ACTIVATION: Rozważ użycie skilla `name1`, `name2`
-  📋 CONTEXT RULES (relevant memory):
-    → feedback_X.md: opis...
-    ↓
-Claude widzi reminder w kontekście przed odpowiedzią
-```
-
-### Dlaczego BM25 (v0.2)
-
-BM25 (Best Matching 25) to de-facto standard w search engines — używany przez Google, Elasticsearch, Lucene od ~40 lat. Implementacja w stdlib (~50 linii), bez zewnętrznych zależności. Uwzględnia:
-
-- **IDF** — rzadkie słowa ważniejsze niż częste
-- **Length normalization** — krótkie dokumenty nie dostają niesprawiedliwej przewagi
-- **Term frequency saturation** — 10. powtórzenie słowa już niewiele dodaje
-
-Plus prosty **stemmer polski** — żeby „wagę"/"waga"/„wagi" matchowały się na wspólny trzon.
-
-**Silent fail** wszędzie — brak configa, broken JSON, prompt 50 KB, sigma Unicode — hook nigdy nie ubija promptu.
-
----
 
 ## Troubleshooting
 
 | Objaw | Diagnoza |
 |---|---|
-| `tail -f` pokazuje same `NO MATCH` | Keywordy w twoim configu nie pasują do tego jak faktycznie mówisz. Odpal `skill-router-stats.py --days 7` → sekcja „bez matcha" powie które skille są martwe. |
-| `CONFIG WARN` w logu | Zły format `skill-rules.json`. Komunikat mówi co poprawić (priority, keywords, typ entry). |
-| Hook nie odpala się w ogóle | Sprawdź `~/.claude/settings.json` — czy jest blok `UserPromptSubmit`? Sprawdź `which python3`. |
-| Log rośnie w nieskończoność | Hook sam rotuje po 1 MB (`.log.1`). Jeśli nadal duży — `LOG_MAX_BYTES` w `skill-router.py` obniż. |
+| Same `NO MATCH` w logu | Keywordy w configu nie pasują do tego jak mówisz. Odpal stats → sekcja „bez matcha" powie które skille są martwe. |
+| `CONFIG WARN` | Zły format `skill-rules.json`. Komunikat mówi co poprawić. |
+| Hook nie odpala się | Sprawdź `~/.claude/settings.json` → blok `UserPromptSubmit`. `which python3` musi zwracać ścieżkę. |
 
 ---
+
+<details>
+<summary><strong>⚡ Advanced — dla power userów systemu pamięci</strong></summary>
+
+Jeśli trzymasz własne zasady pracy w `~/.claude/projects/*/memory/feedback_*.md` i `memory/rules/*.md` (pliki markdown z YAML frontmatter'em), hook może je automatycznie **wstrzykiwać do kontekstu** gdy są relevantne do promptu.
+
+Przykład z aktywnym systemem pamięci:
+
+```
+$ echo '{"prompt":"Zrób karuzelę na LinkedIn o AI agentach"}' | python3 skill-router.py
+🎯 SKILL ACTIVATION: Rozważ użycie skilla `create-carousel`
+
+📋 CONTEXT RULES (relevant memory):
+  → feedback_carousel_default_style_b.md: Style B jest domyślny...
+  → feedback_linkedin_api.md: Nie publikować przez Postiz — używać LinkedIn API...
+```
+
+Jeśli **nie masz** plików `feedback_*.md` w swoim systemie, hook milczy o tym — widzisz tylko SKILL ACTIVATION (identycznie jak w quick start powyżej).
+
+### Jak to działa pod spodem
+
+```
+prompt → normalize (diakrytyki + stemmer polski)
+       ↓
+       ├─ A) SKILL ACTIVATION          ← substring match z skill-rules.json
+       └─ B) CONTEXT RULES (opt-in)    ← BM25 ranking na memory/
+                                          - IDF × TF × length normalization
+                                          - boost dla filename/description (3×)
+                                          - priority boost (critical=10×, high=3×, medium=1×, low=0.3×)
+                                          - min 2 unique hits, min score 3.0
+```
+
+**Dlaczego BM25:** to de-facto standard w search engines (Google, Elasticsearch, Lucene, ~40 lat). Stdlib-only implementacja (~70 linii) = zero deps.
+
+### Priority boost
+
+Dodaj w YAML frontmatter reguły:
+
+```yaml
+---
+name: Firewall legal
+description: Klauzula §9.4 — wabienie klientów
+priority: critical   # ← critical/high/medium/low
+---
+```
+
+Critical × 10 multiplier zapewnia że bezpieczeństwo i legal praktycznie nigdy nie wypadną z top 3.
+
+### Auto-mapowanie skilli z SKILL.md
+
+Zamiast ręcznie pisać `skill-rules.json`, wygeneruj z frontmatter'ów:
+
+```bash
+python3 ~/Projects/skill-router/scripts/gen-skill-rules.py
+```
+
+Skrypt:
+- skanuje `~/.claude/skills/*/SKILL.md`
+- parsuje `description:` → wyciąga quoted trigger phrases (`"napisz post"`, `"zrób X"`)
+- dodaje nazwę skilla jako fallback keyword
+- zachowuje istniejące manualne priority
+- robi timestamped backup `skill-rules.json.bak-YYYYMMDD-HHMMSS`
+
+### Silent fail wszędzie
+
+Brak configa, broken JSON, prompt 50 KB, unusual Unicode, brak `memory/` — hook nigdy nie ubija promptu. Exit 0 zawsze.
+
+</details>
+
+---
+
+## Wersje
+
+- **v0.1.0** — [release](https://github.com/studiogo/skill-router/releases/tag/v0.1.0) — podstawa (tylko skill activation). Idealna jeśli nie masz systemu pamięci.
+- **v0.2.0** — [release](https://github.com/studiogo/skill-router/releases/tag/v0.2.0) — dodany BM25 context rules z `memory/feedback_*.md`.
+- **v0.3.0** (aktualna) — [release](https://github.com/studiogo/skill-router/releases/tag/v0.3.0) — priority boost + rules/*.md w corpus + auto-mapa skilli.
+
+Do filmu wprowadzającego skill-router polecamy **v0.1.0** (prostsza) — instaluje się tą samą komendą, tylko podmień `main` na `v0.1.0`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/studiogo/skill-router/v0.1.0/install.sh | bash
+```
 
 ## Licencja
 
