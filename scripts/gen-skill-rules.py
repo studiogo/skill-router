@@ -52,13 +52,25 @@ def parse_frontmatter(text: str) -> dict:
 
 
 def extract_keywords(description: str, skill_name: str) -> list:
-    """Pull quoted phrases + skill-name words as BM25 seed keywords."""
+    """Pull quoted phrases + skill-name words as BM25 seed keywords.
+
+    Supports three quote styles: ASCII double ("foo"), Polish typographic (
+    „foo"), and ASCII single ('foo'). Single quotes are only matched when
+    both delimiters look like phrase boundaries (preceded/followed by space,
+    punctuation, or string edge) so apostrophes in possessives/contractions
+    like Pocock'a or deadline'y don't leak in as fake triggers.
+    """
     kws: set = set()
     for pattern in [r'"([^"]+?)"', r'„([^"]+?)"']:
         for m in re.finditer(pattern, description):
             phrase = m.group(1).strip().lower()
             if len(phrase) >= 3:
                 kws.add(phrase)
+    single_boundary = r"(?:(?<=^)|(?<=[\s,.;:—\-(\[]))'([^']+?)'(?=[\s,.;:!?—\-)\]]|$)"
+    for m in re.finditer(single_boundary, description):
+        phrase = m.group(1).strip().lower()
+        if len(phrase) >= 3:
+            kws.add(phrase)
     base = skill_name.replace("-", " ").replace("_", " ").lower()
     kws.add(base)
     for word in base.split():
