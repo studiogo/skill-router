@@ -1,5 +1,10 @@
 # skill-router
 
+[![Licencja MIT](https://img.shields.io/github/license/studiogo/skill-router)](LICENSE)
+[![Ostatnia zmiana](https://img.shields.io/github/last-commit/studiogo/skill-router)](https://github.com/studiogo/skill-router/commits/main)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
+[![Zero zależności](https://img.shields.io/badge/zale%C5%BCno%C5%9Bci-0-brightgreen)](#quick-start)
+
 **Automatyczne przypomnienia o Twoich skillach w Claude Code.** Claude zapomina o kartkach procedur po długiej sesji. `skill-router` to drugi asystent — czyta każdy Twój prompt, matchuje go ze słownikiem skilli i szepcze Claude'owi: *„sprawdź kartkę 13"*.
 
 Jeden hook w Pythonie. **Zero zależności** — `pip install` nie jest potrzebny, tylko Python 3.7+ (macOS/Linux ma wbudowany).
@@ -17,7 +22,7 @@ Kopiuje 3 pliki do `~/.claude/hooks/`, podpina hook w `~/.claude/settings.json` 
 **To wszystko.** W nowej sesji Claude Code wpisz coś ze słowem kluczowym z config'a i zobaczysz:
 
 ```
-$ echo '{"prompt":"Zrób karuzelę na LinkedIn"}' | python3 skill-router.py
+$ echo '{"prompt":"Zrób karuzelę na LinkedIn"}' | python3 ~/.claude/hooks/skill-router.py
 🎯 SKILL ACTIVATION: Rozważ użycie skilla `create-carousel`
 ```
 
@@ -82,7 +87,7 @@ Jeśli trzymasz własne zasady pracy w `~/.claude/projects/*/memory/feedback_*.m
 Przykład z aktywnym systemem pamięci:
 
 ```
-$ echo '{"prompt":"Zrób karuzelę na LinkedIn o AI agentach"}' | python3 skill-router.py
+$ echo '{"prompt":"Zrób karuzelę na LinkedIn o AI agentach"}' | python3 ~/.claude/hooks/skill-router.py
 🎯 SKILL ACTIVATION: Rozważ użycie skilla `create-carousel`
 
 📋 CONTEXT RULES (relevant memory):
@@ -125,9 +130,14 @@ Critical × 10 multiplier zapewnia że bezpieczeństwo i legal praktycznie nigdy
 
 Zamiast ręcznie pisać `skill-rules.json`, wygeneruj z frontmatter'ów:
 
+Tego skryptu instalator nie kopiuje — leży tylko w repozytorium. Pobierz go osobno:
+
 ```bash
-python3 ~/Projects/skill-router/scripts/gen-skill-rules.py
+curl -fsSL https://raw.githubusercontent.com/studiogo/skill-router/main/scripts/gen-skill-rules.py -o /tmp/gen-skill-rules.py
+python3 /tmp/gen-skill-rules.py
 ```
+
+Albo, jeśli masz sklonowane repozytorium, uruchom `python3 scripts/gen-skill-rules.py` z jego katalogu.
 
 Skrypt:
 - skanuje `~/.claude/skills/*/SKILL.md`
@@ -159,6 +169,16 @@ Do filmu wprowadzającego skill-router polecamy **v0.1.0** (prostsza) — instal
 ```bash
 curl -fsSL https://raw.githubusercontent.com/studiogo/skill-router/v0.1.0/install.sh | bash
 ```
+
+## Zgłoszenia i zmiany
+
+Najcenniejsze zgłoszenie w tym projekcie to prompt, na który hook nie podpowiedział właściwego skilla. Tego nie da się zbadać bez cudzych promptów, więc jeśli na coś trafisz — napisz.
+
+- [Otwórz zgłoszenie](https://github.com/studiogo/skill-router/issues/new/choose) — są trzy szablony: nietrafione dopasowanie, błąd, propozycja zmiany.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — co dołożyć do zgłoszenia, jakie warunki musi spełnić zmiana w kodzie i czego nie przyjmę.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — zasady rozmowy.
+
+Zanim wkleisz swoją konfigurację, przytnij ją do wpisów, których sprawa dotyczy. W `skill-rules.json` zwykle siedzą nazwy klientów i projektów.
 
 ## Licencja
 
